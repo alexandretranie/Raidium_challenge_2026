@@ -1,0 +1,785 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage[left=3cm, right=3cm, top=2cm, bottom=2cm]{geometry}
+
+\usepackage{newpxtext}
+\usepackage{newpxmath}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+
+\usepackage{amsmath}
+\usepackage{nccmath}
+\usepackage{stmaryrd}
+\usepackage{textcomp}
+\usepackage{siunitx}
+\usepackage{wasysym}
+\usepackage{bbm}
+
+
+\usepackage{tikz}
+\usetikzlibrary{decorations.pathreplacing}
+\usetikzlibrary{calc,arrows.meta,babel}
+\definecolor{planefill}{RGB}{238,240,245}
+\definecolor{planeline}{RGB}{201,206,220}
+\definecolor{planeedge}{RGB}{160,167,196}
+\definecolor{oliveD}{RGB}{138,125,42}
+\definecolor{redD}{RGB}{158,43,37}
+\definecolor{blueD}{RGB}{31,79,168}
+\definecolor{slate}{RGB}{106,111,156}
+
+
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage[most,many]{tcolorbox}
+\usepackage[hidelinks]{hyperref}
+
+\newcounter{notion}[section]
+\renewcommand{\thenotion}{\thesection.\arabic{notion}}
+\let\frac\dfrac
+\newcommand{\dsum}{\displaystyle\sum}
+
+\definecolor{myblue}{RGB}{60,90,200}
+\definecolor{myred}{RGB}{200,60,60}
+\definecolor{mygreen}{RGB}{40,120,70}
+\definecolor{myorange}{RGB}{190,120,20}
+
+\tcbset{
+ideaBox/.style={
+    enhanced,
+    colback=red!6,
+    colframe=myred,
+    coltitle=black,
+    colbacktitle=red!6,
+    fonttitle=\bfseries\scshape,
+    attach title to upper={\par\vspace{4pt}\noindent},
+    separator sign none,
+    boxrule=1.2pt,
+    arc=5pt,
+    left=10pt, right=10pt, top=8pt, bottom=8pt,
+    }
+}
+
+\newtcbtheorem[use counter=notion]{definitionbox}{Definition}{ideaBox}{def}
+\newtcbtheorem[use counter=notion]{propositionbox}{Proposition}{ideaBox}{prop}
+\newtcbtheorem[use counter=notion]{theorembox}{Theorem}{ideaBox}{theo}
+
+% --- Lab-notebook apparatus -------------------------------------------------
+% Every experiment in this document is one box, always in the same four beats:
+% hypothesis, protocol, measurement, verdict. The frame colour is the verdict,
+% so the outcome of a run is readable without reading the run.
+\tcbset{
+logBox/.style={
+    enhanced, breakable,
+    coltitle=black,
+    fonttitle=\bfseries,
+    attach title to upper={\par\vspace{4pt}\noindent},
+    separator sign none,
+    boxrule=1.0pt,
+    arc=4pt,
+    left=9pt, right=9pt, top=7pt, bottom=7pt,
+    },
+failBox/.style={logBox, colback=red!5,    colframe=myred,    colbacktitle=red!5},
+winBox/.style={ logBox, colback=green!5,  colframe=mygreen,  colbacktitle=green!5},
+openBox/.style={logBox, colback=orange!6, colframe=myorange, colbacktitle=orange!6},
+}
+
+\newcounter{exper}
+\renewcommand{\theexper}{\arabic{exper}}
+\newtcbtheorem[use counter=exper]{expfail}{Experiment}{failBox}{exp}
+\newtcbtheorem[use counter=exper]{expwin}{Experiment}{winBox}{exp}
+\newtcbtheorem[use counter=exper]{expopen}{Experiment}{openBox}{exp}
+
+\newcommand{\hyp}{\textbf{Hypothesis.\ }}
+\newcommand{\proto}{\textbf{Protocol.\ }}
+\newcommand{\meas}{\textbf{Measured.\ }}
+\newcommand{\verd}{\textbf{Verdict.\ }}
+
+\newcommand{\rejected}{\textcolor{myred}{\textsc{rejected}}}
+\newcommand{\adopted}{\textcolor{mygreen}{\textsc{adopted}}}
+\newcommand{\untested}{\textcolor{slate}{\textsc{untested}}}
+\newcommand{\ongoing}{\textcolor{myorange}{\textsc{running}}}
+
+% Citations as a small raised number, without brackets: [3] inline is heavy in a
+% document this dense.
+\makeatletter
+\renewcommand\@cite[2]{\textsuperscript{#1\ifx\@empty#2\@empty\else\,#2\fi}}
+\renewcommand\@biblabel[1]{#1.}
+\makeatother
+
+\usepackage{enumitem}
+\setcounter{tocdepth}{2}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\renewcommand{\headruleskip}{1.5mm}
+\renewcommand{\headrulewidth}{0.1pt}
+\renewcommand{\footruleskip}{1.5mm}
+\renewcommand{\footrulewidth}{0.1pt}
+
+\fancyhead[L]{}
+\fancyhead[R]{}
+\fancyfoot[L]{}
+\fancyfoot[C]{\thepage}
+\fancyfoot[R]{}
+
+\title{Raidium Data Challenge 2026}
+\author{Alexandre Tranié}
+\date{August 2026}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section*{Summary}
+\addcontentsline{toc}{section}{Summary}
+
+Segment 54 organs on 2D CT slices, from 800 images whose annotation is
+\emph{partial}: on each slice only 27 of the 54 organs were outlined, so a pixel
+labelled \texttt{0} means ``background \emph{or} one of the 27 nobody looked
+at''. The trajectory:
+
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}lXrr@{}}
+\hline
+\textbf{step} & \textbf{what changed} & \textbf{Dice} & \textbf{silent} \\
+\hline
+baseline        & U-Net ResNet-34, marginal loss            & 0.4474 & 22 \\
+architecture    & DINOv3~\cite{dinov3} + DPT~\cite{dpt} encoder      & 0.4855 & 8 \\
+self-training   & pseudo-labels on the 1200 raw slices      & 0.5235 & 6 \\
+external data   & TotalSegmentator v1, resliced to 2D       & 0.6803 & 0 \\
++ fine-tuning   & on the 640 challenge slices               & 0.7522 & 0 \\
++ pixel spacing & measured at $1.45$\,mm/px, not $1.20$     & 0.7584 & 2 \\
++ ensemble      & 7 models, 2 architectures, 2 scales       & \textbf{0.7796} & 0 \\
+\hline
+leaderboard     & (validation $\to$ held-out test)          & \textbf{0.7612} & 0 \\
+\hline
+\end{tabularx}
+\end{center}
+
+\noindent The decisive step was not architectural. It was proving that the 54
+anonymous challenge classes \emph{are} TotalSegmentator~v1~\cite{totalseg} with
+four merges (\S\ref{sec:identify}), which turns a public dataset of 1204 CT volumes
+into complete supervision for exactly this label space. Everything before that
+step is worth $+0.076$ in total; that step alone is worth $+0.23$.
+
+\vspace{2.0mm}
+
+\noindent Final standing: \textbf{1\textsuperscript{st}}, $0.0163$ ahead of the
+previous leader ($0.7449$), from roughly 21\textsuperscript{st} at the start.
+
+
+\newpage
+
+\section{Context}
+
+The dataset is composed of 2D CT scan images and their corresponding masks for
+different organs (54 in total). The challenge is to develop a model that can
+accurately segment the organs from the CT scan images.
+
+\vspace{2.0mm}
+
+Composition of the dataset:
+\begin{itemize}
+    \item 800 annotated CT scan images in PNG format, $256\times256$ pixels;
+    \item 800 corresponding masks;
+    \item 1200 CT scan images with no annotation at all;
+    \item 500 CT scan images for the test set.
+\end{itemize}
+
+\vspace{2.0mm}
+
+\noindent The trick here is that the 800 annotated CT scans are \emph{not fully
+annotated}: not every organ is outlined. A label file states, for each image,
+which organs were examined - but it only lists 27 of the 54. We therefore lack
+any information about the other 27. A pixel set to \texttt{0} does not mean
+``background'', it means ``background \emph{or} one of the organs nobody
+outlined''.
+
+\vspace{2.0mm}
+
+\noindent Model performance is assessed with the Dice coefficient, a measure of overlap
+between two samples. It ranges from 0 to 1, where 1 indicates perfect overlap
+and 0 no overlap:
+\begin{equation}
+    \text{Dice}(A, B) = \frac{2 |A \cap B|}{|A| + |B|}
+\end{equation}
+
+\noindent Crucially, the score averages Dice \emph{per organ first}, then over the 54
+organs. Every class therefore weighs $1/54$ regardless of how often it appears,
+and a class that is never predicted costs $0.0185$ in full.
+
+\newpage
+
+\section{Baseline}
+\label{sec:baseline}
+
+A U-Net with a ResNet-34 encoder, trained with the marginal loss~\cite{marginal}
+that handles the partial annotation, scores \textbf{0.4474} on our validation split. Two
+reference points frame it. Plain cross-entropy - which reads every \texttt{0}
+pixel as background and therefore teaches the network to erase the 27 organs it
+was not shown - collapses to \textbf{0.1506}. The challenge's own
+nnU-Net~\cite{nnunet} baseline sits at \textbf{0.4399}.
+
+\vspace{2.0mm}
+
+\noindent That first gap, $+0.297$ for the loss alone, is the largest single
+effect measured anywhere in this project. It is worth stating up front because it
+fixes the scale against which everything below should be read: no architectural
+change in this document is worth a tenth of it, and the one intervention that
+eventually beat it was also about supervision, not about the network.
+
+\subsection{The problem this baseline exposes}
+
+It does not predict the smaller classes at all: 22 of the 54 organs are never
+output. Since the metric weighs every class equally, those 22 silent classes cap
+the achievable score at $1 - 22/54 = 0.59$ before anything else goes wrong. The
+question that drives the rest of the document is therefore not ``how do I segment
+better'' but ``how do I stop the model from forgetting two fifths of the label
+space''.
+
+\subsection{Warning: there are two ResNet-34 numbers}
+
+$0.4474$ is the best ResNet-34 run of the project, trained to convergence. Several
+controlled experiments below use a deliberately shorter recipe (40 epochs, batch
+4) whose control arm scores $0.3828$ with 25 silent classes. Both are ``the
+ResNet-34 baseline''. They are comparable \emph{within} their own table and never
+across tables. Whenever two numbers here seem to contradict each other, check the
+training budget first.
+
+\section{The hypothesis log}
+\label{sec:log}
+
+Understanding the data is what helped most, and on this challenge that had to come
+before any modelling: the identifiers are anatomically anonymous, and ``organ 36
+is missing'' is not actionable in the way ``the liver is missing'' is. Naming them
+(\S\ref{sec:identify}) is what eventually opened the external data, which is why
+it comes first below even though it produces no score by itself.
+
+\vspace{2.0mm}
+
+\noindent The table is the complete list of what was considered, each line with
+its verdict. It is meant to be read on its own, as the answer to ``did I already
+try this?''. The dead ends take up as much room as the rest of this document,
+because ruling out a hypothesis properly costs compute, and writing down
+\emph{why} it failed is the only thing that stops it from being tried a second
+time.
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{@{}p{4.3cm}Xl@{}}
+\hline
+\textbf{hypothesis} & \textbf{what came of it} & \textbf{status} \\
+\hline
+\multicolumn{3}{@{}l@{}}{\textit{Loss and sampling}}\\
+Marginal loss for partial annotation & $0.1506 \to 0.4474$ & \adopted \\
+Weight the loss by inverse organ area & $0.4248$, i.e.\ \emph{below} the baseline & \rejected \\
+Oversample slices carrying a rare organ & small but real; kept in the final recipe & \adopted \\
+Per-class decision thresholds & 54 parameters fitted on 160 images; only a single global threshold at $0.25$ survives cross-validation & \rejected \\
+Focal loss, Tversky with $\beta > \alpha$ & only ever run inside the area-weighting arm, never isolated & \untested \\
+\hline
+\multicolumn{3}{@{}l@{}}{\textit{Architecture}}\\
+DINOv3 + DPT instead of ResNet-34 & $+0.038$, the largest architectural gain measured here & \adopted \\
+DINOv3 pretrained on the external set & $+0.044$ at pretraining, so the advantage survives. But it takes only $+0.029$ from fine-tuning where ResNet-34 takes $+0.079$, and ends \emph{below} it & \adopted \\
+Raise \texttt{encoder-lr-scale} at fine-tuning & monotone and real ($0.1 \to 0.7518$, $1.0 \to 0.7568$) but worth $+0.005$, and \emph{nothing} in the ensemble & \rejected \\
+Freeze the DINOv3 encoder & $0.2672$: grey-scale CT is too far from the pretraining distribution & \rejected \\
+U-Net with attention, multi-task heads & never reached - the data axis dominated everything & \untested \\
+\hline
+\multicolumn{3}{@{}l@{}}{\textit{Resolution and field of view}}\\
+Upsample the slice to 384 or 512 & non-monotone, and \emph{nothing} on the six smallest organs. Re-run later on a model where everything else works: still $-0.08$, and the adrenal probability moves from $0.006$ to $0.001$ & \rejected \\
+Fix the pixel spacing to $1.45$\,mm/px & $+0.006$ after fine-tuning, nothing before it - and it \emph{costs} the two smallest organs, see below & \adopted \\
+Zoom cascade: detect, crop, re-segment & $0 \to 0.22$ on the iliac vessels, yet the ablation shows the cause is the narrowed field of view, not the pixel budget & \rejected \\
+\hline
+\multicolumn{3}{@{}l@{}}{\textit{Input representation}}\\
+Recover Hounsfield units, three windows & $0.3059$ against $0.4474$ & \rejected \\
+Per-slice contrast handling & useless on the challenge data, then essential when generating the external set (\S\ref{sec:external}) & \adopted \\
+\hline
+\multicolumn{3}{@{}l@{}}{\textit{Data}}\\
+Presence classifier: which organs does this slice contain? & oracle ceiling $+0.007$ --- the model almost never invents an absent organ, so there is nothing to win & \rejected \\
+Left--right flip augmentation & $0.4124$ against $0.4474$: it halves the supervision of the classes that have no mirror twin & \rejected \\
+Pseudo-label the 1200 unannotated slices & $+0.038$ & \adopted \\
+Run TotalSegmentator directly as a labeller & it is a 3D model; on 2D slices stacked into fake volumes its recall falls to 5--30\,\% & \rejected \\
+\textbf{Slice annotated 3D volumes into 2D and remap the labels} & \textbf{$+0.23$, and every silent class disappears} (\S\ref{sec:external}) & \adopted \\
+\hline
+\multicolumn{3}{@{}l@{}}{\textit{Ensembling}}\\
+Search the ensemble weights on validation & the winning weighting beats the uniform one by $+0.02$ on those 160 images and by nothing anywhere else & \rejected \\
+Average models that differ only in a hyper-parameter & two ResNet-34 fine-tuned at different learning rates: $+0.003$ & \rejected \\
+\textbf{Average models that differ in architecture or in pixel scale} & \textbf{$+0.012$ on validation and $+0.016$ on the leaderboard} - the one case where the leaderboard gained \emph{more} than validation predicted & \adopted \\
+\hline
+\end{tabularx}
+\end{center}
+
+\noindent It is the last line that unlocked everything. What follows retraces the
+path in the order it was actually walked.
+
+\newpage
+
+\section{Identifying the 54 organs}
+\label{sec:identify}
+
+The challenge identifiers are anatomically mute. A first pass matched them
+against the 117 classes of TotalSegmentator, by crossing Dice and precision over
+127 slices, and named 46 of the 54. Eight resisted: \texttt{7, 8, 12, 39, 41,
+48, 52, 53}.
+
+\subsection{The key: the numbering follows alphabetical order}
+
+The decisive fact does not come from the images. Sorting the already-named
+identifiers by number, the names come out in alphabetical order - without a
+single exception across all 46. That is simply how a \texttt{sorted()} call over
+a class dictionary numbers its outputs. Every anonymous identifier is therefore
+\emph{bracketed} by its two named neighbours, which shrinks the candidate space
+to almost nothing.
+
+\vspace{2.0mm}
+
+\noindent Geometry and boundary adjacency settle the rest:
+
+\begin{center}
+\begin{tabularx}{\textwidth}{llX}
+\hline
+\textbf{id} & \textbf{name} & \textbf{what establishes it} \\
+\hline
+7, 8 & \texttt{clavicula\_left/right} & elongated bone at the lung apex; 100\,\% of 8's boundary touches \texttt{scapula\_right} \\
+12 & \texttt{face} & convex 8{,}700\,px block in front of the face, on skull slices, overflowing the skin \\
+39 & \texttt{pancreas} & retro-gastric comma; 46\,\% boundary contact with the splenic vein, 14\,\% duodenum \\
+41 & \texttt{pulmonary\_artery} & branching mediastinal trunk at the hilum; 39\,\% contact with the heart, 31\,\% aorta \\
+48 & \texttt{spleen} & left upper quadrant; 32\,\% contact with the stomach, 17\,\% left kidney \\
+52, 53 & \texttt{vertebrae\_cervical/lumbar} & mutually exclusive with 54, disjoint regional profiles \\
+\hline
+\end{tabularx}
+\end{center}
+
+\subsection{The spine is split into three classes}
+
+\texttt{52}, \texttt{53} and \texttt{54} never coexist: across 190 co-annotated
+slices, 52 and 53 are always separate, and 54 meets each of them on only 4
+transition slices --- where they \emph{touch} end to end. Their regional profiles
+order them: 52 at the neck, 54 at the thorax (lung 89\,\%, heart 36\,\%), 53 at
+the abdomen (colon 96\,\%, small bowel 85\,\%). Alphabetical order closes the
+argument, since \texttt{cervical} $<$ \texttt{lumbar} $<$ \texttt{thoracic}
+reproduces exactly $52 < 53 < 54$. \texttt{54} must therefore be read as
+\texttt{vertebrae\_thoracic} rather than a generic \texttt{vertebrae}.
+
+\subsection{Conclusion: the 54 classes \emph{are} TotalSegmentator v1}
+
+Take \texttt{class\_map["total\_v1"]} and merge the 5 lung lobes into
+left/right, the 24 vertebrae into three regions, the 24 ribs into left/right and
+the 5 heart parts into one:
+$$104 - 5 - 24 - 24 - 5 + 8 = 54.$$
+Sorted alphabetically, those 54 names land on the 54 challenge identifiers
+\textbf{one for one, without exception}. The names are no longer inferred, they
+are derived.
+
+\vspace{2.0mm}
+
+It is version 1 and not version 2, and two classes prove it. Neither appears in
+the \texttt{total} task of v2: \texttt{face} was moved out to a dedicated
+\texttt{face} subtask, and \texttt{pulmonary\_artery} was moved to
+\texttt{heartchambers\_highres}, while a genuinely different vessel,
+\texttt{pulmonary\_vein}, was added to \texttt{total} in its place. Feeding v2
+labels through this table would therefore silently mislabel identifier 41 --- with
+a vein, on the same anatomy.
+
+\vspace{2.0mm}
+
+One detail corroborates the merge itself rather than the version. Going from v1 to
+v2, the authors also collapsed their five heart parts into a single \texttt{heart}
+class in the \texttt{total} task: one of the four merges postulated above,
+performed independently, for their own reasons.
+
+\newpage
+
+\section{Diagnosis: where the score is lost}
+\label{sec:diagnosis}
+
+\subsection{Every class weighs 1/54}
+
+A class that is never predicted costs $1/54 = 0.0185$ in full, no matter how
+rare it is. With 22 silent classes at the start, that is $0.41$ of the ceiling
+locked away.
+
+\vspace{2.0mm}
+
+An oracle decomposition prices the rest: segmenting the 31 organs above 400\,px
+\emph{perfectly} would still cap out at $0.6814$. In other words, no score beyond
+$0.68$ is reachable without making the small organs work.
+
+\subsection{Silent $=$ small \textbf{and} rare}
+
+The counts below are read on the DINOv3 model, not on the baseline: by that point
+the architecture change had already taken the silent classes from 22 down to 8.
+Neither size nor rarity is sufficient on its own to explain which 8 survive:
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lX}
+\hline
+\textbf{regime} & \textbf{measured} \\
+\hline
+rare but large & \texttt{brain} 0.987, seen 15 times; \texttt{femur\_right} 0.844, seen \textbf{9 times} \\
+small but frequent & right iliac artery, 55\,px, seen 91 times: 0.115 --- predicted, but poorly \\
+small \textbf{and} rare & the 8 silent classes, all under 400\,px \emph{and} under 40 slices \\
+\hline
+\end{tabularx}
+\end{center}
+
+\begin{sloppypar}
+The double-handicap zone holds 9 classes; 8 of them are silent, and the only
+survivor is \texttt{gluteus\_minimus\_left} --- a compact muscle at a
+stereotyped position.
+\end{sloppypar}
+
+\subsection{Dice is the wrong instrument here}
+
+On these classes Dice is a step function: exactly 0 until the argmax flips, then
+0.3 to 0.5 at once. It cannot tell whether an intervention brought the model
+\emph{closer} to the threshold, and seven of the nine organs under 200\,px scored
+0.000 in every checkpoint of the project.
+
+\vspace{2.0mm}
+
+\noindent The fix was to read the \textbf{mean softmax probability on the organ's true
+pixels} instead of the argmax. Being continuous, it separates $0.002$ from
+$0.08$ where Dice writes 0 twice. Every conclusion below rests on that
+instrument; without it, three of the experiments would have been declared ``no
+effect'' with no way of knowing whether that was right.
+
+\newpage
+
+\section{What did not work}
+\label{sec:failed}
+
+\addcontentsline{toc}{subsection}{Weighting the loss by inverse organ area}
+\begin{expfail}{Weighting the loss by inverse organ area}{area}
+\hyp If the small classes are silent because the loss is dominated by the large
+ones, re-weighting each class by the inverse of its area should bring them back.
+
+\proto ResNet-34 U-Net, baseline recipe otherwise untouched, per-class weights
+applied to the overlap term.
+
+\meas $0.4248$, against $0.4474$ for the unweighted baseline.
+
+\verd \rejected - and not merely neutral, \emph{below} the baseline. The weight
+buys attempts on the small classes at the expense of the large ones, and the
+trade loses. First sign that the small-organ failure is not a question of how the
+loss is balanced.
+\end{expfail}
+
+\addcontentsline{toc}{subsection}{Raising the internal resolution}
+\begin{expfail}{Raising the internal resolution}{res}
+\hyp The smallest organs cover a handful of pixels. Give the network four times
+as many and the argmax should be able to flip.
+
+\proto Five paired arms (40 epochs, batch 4, ResNet-34): upsample the slice
+before the network, bring the logits back down afterwards. No information is
+added --- only stride.
+
+\meas
+\begin{center}
+\begin{tabular}{lcc}
+\hline
+\textbf{arm} & \textbf{Dice} & \textbf{silent} \\
+\hline
+256 (control) & 0.3828 & 25 \\
+384 & \textbf{0.4109} & 23 \\
+512 & 0.3974 & 25 \\
+256 + rare-organ resampling & 0.3903 & 24 \\
+512 + resampling & 0.4023 & 23 \\
+\hline
+\end{tabular}
+\end{center}
+
+\verd \rejected, with a caveat that matters later. The global gain is real but
+modest and \textbf{not monotone}: 384 beats 512 for half the compute. More
+decisively, on the six smallest organs the probability given to the correct class
+stays at \textbf{0.000 in every arm}, 512 included --- multiplying the pixels by
+four changes nothing. The caveat: all five arms ran on a model carrying 23 to 25
+silent classes, which is too weak to separate ``resolution does not help'' from
+``nothing helps yet''. Re-run later on a model where everything else works: still
+$-0.08$, and the adrenal probability falls from $0.006$ to $0.001$.
+\end{expfail}
+
+\addcontentsline{toc}{subsection}{A zoom cascade: detect, then crop and re-segment}
+\begin{expfail}{A zoom cascade: detect, then crop and re-segment}{zoom}
+\hyp A small organ is easier to find once the image is cropped around it.
+
+\proto Tested directly as an \emph{upper bound}: the crop is centred on the ground
+truth, so no real localisation stage could ever do better. A failure here kills
+the whole family at once.
+
+\meas
+\begin{center}
+\begin{tabular}{lcc}
+\hline
+ & \textbf{full image} & \textbf{crop 128$\to$256} \\
+\hline
+4 iliac vessels & prob. 0.000, Dice 0.000 & \textbf{prob. 0.28, Dice 0.22--0.26} \\
+2 adrenal glands & prob. 0.000 & prob. 0.000, and falling \\
+\hline
+\end{tabular}
+\end{center}
+
+\verd \rejected as a pipeline. The adrenal glands do not move at all, and the four
+vessels that do gain would still need a localisation stage that does not exist.
+
+\vspace{2.0mm}
+\noindent\textbf{But this is the most useful negative result of the project.}
+Global upsampling $256 \to 512$ and cropping $128 \to 256$ multiply the organ's
+pixel count by exactly the same factor of four. The first gives nothing; the
+second takes four classes from 0 to 0.22. So what acts is not the \emph{pixel
+budget} but the \textbf{narrowed field of view}: the crop removes 75\,\% of the
+image, and every remaining training example is relevant to the target. A second
+arm confirms it from the other side --- shrinking the decision from 55 classes to
+the 12 locally plausible ones changes nothing ($0.274$ against $0.286$), so it is
+not the size of the label space either.
+\end{expfail}
+
+\addcontentsline{toc}{subsection}{Per-class decision thresholds}
+\begin{expfail}{Per-class decision thresholds}{thr}
+\hyp The argmax assigns background as soon as its probability exceeds the
+organ's. Lowering the threshold on the weak classes looks free.
+
+\proto Fit one threshold per class, then re-score. Honest evaluation by
+cross-validation, against the same fit performed and scored on all 160 validation
+images.
+
+\meas
+\begin{center}
+\begin{tabular}{lcccc}
+\hline
+\textbf{checkpoint} & \textbf{argmax} & \textbf{single thr.} & \textbf{per class} & \textbf{per class, fit on all} \\
+\hline
+best\_dinov3 & 0.4855 & \textbf{0.4935} & 0.4890 & 0.5077 \\
+best\_resnet34 & 0.4474 & 0.4492 & \textbf{0.4587} & 0.4630 \\
+pseudo\_os\_resnet34 & 0.5235 & \textbf{0.5289} & 0.5277 & 0.5416 \\
+\hline
+\end{tabular}
+\end{center}
+
+\verd \rejected in its per-class form. Fitting 54 thresholds on 160 images and
+scoring on those same images yields $+0.018$ to $+0.022$ reproducibly;
+cross-validation leaves $+0.002$ to $+0.011$. What survives is a \emph{single}
+global threshold around $0.25$ --- a broad, smooth plateau and one parameter, so
+it generalises. Kept in the final recipe.
+\end{expfail}
+
+\newpage
+
+\section{What did work: external data}
+\label{sec:external}
+
+Since the 54 classes \emph{are} TotalSegmentator v1, the corresponding public
+dataset (1204 CT volumes, annotated for all 104 classes, CC BY 4.0) translates
+exactly. And
+it brings something the challenge data does not have at all: \textbf{complete}
+supervision, every organ outlined on every slice.
+
+\subsection{Three things to imitate, or the network learns the wrong cue}
+
+\begin{itemize}
+    \item \textbf{Geometry.} $256\times256$, and above all the orientation. The
+    challenge frame is rotated 90° from the usual radiological convention.
+    Rather than assume it, the eight symmetries of the square were compared using
+    the centroids of 12 landmark organs: the identity gives a mean error of
+    $0.075$ and every other transform lands above $0.26$. The rotation added ``by
+    common sense'' in the first attempt was wrong.
+    \item \textbf{Plane mix.} 19\,\% of the challenge slices are not axial but
+    reformats (measured: the body spans the image edge to edge). Cutting a volume
+    along three planes is free, so the mix is reproduced: 81/12/7.
+    \item \textbf{Intensity.} Raidium windowed every slice individually before
+    quantising to 8 bits: background air lands anywhere from grey level 0 to 110,
+    and one grey level is worth 4 to 32 HU depending on the slice. Each generated
+    slice therefore draws its own window from the distribution measured on the
+    800. Result: mean grey level 63.4 against 64.4.
+\end{itemize}
+
+\subsection{No leakage, verified}
+
+The project's near-duplicate detector (correlation on pooled images, then mean
+absolute difference at full resolution) was run between the generated slices and,
+on one side the 500 test images, on the other the 800 annotated ones: no slice
+below the twin threshold, and none matched to a validation image. The challenge
+is therefore not drawn from the public dataset.
+
+\subsection{What it changes for the rare classes}
+
+\begin{center}
+\begin{tabular}{llrrr}
+\hline
+\textbf{id} & \textbf{organ} & \textbf{challenge /800} & \textbf{external} & \textbf{ratio} \\
+\hline
+25 & humerus\_left & 6 & 1{,}210 & 202$\times$ \\
+8 & clavicula\_right & 13 & 2{,}952 & 227$\times$ \\
+2 & adrenal\_gland\_right & 18 & 1{,}780 & 99$\times$ \\
+15 & gallbladder & 31 & 1{,}452 & 47$\times$ \\
+\hline
+\end{tabular}
+\end{center}
+
+Non-empty (image, organ) cells: $4{,}781 \to 322{,}617$, a factor of $67$.
+
+\newpage
+
+\section{Results}
+\label{sec:results}
+
+\begin{center}
+\begin{tabular}{lccc}
+\hline
+\textbf{model} & \textbf{Dice (val.)} & \textbf{9 smallest} & \textbf{silent} \\
+\hline
+U-Net ResNet-34, baseline & 0.4474 & 0.136 & 22 \\
+DINOv3 + DPT & 0.4855 & 0.165 & 8 \\
++ pseudo-labels and resampling & 0.5235 & 0.150 & 6 \\
+\hline
+external pretraining, 3 epochs & 0.6122 & 0.303 & 3 \\
+external pretraining, 8 epochs & 0.6803 & 0.358 & \textbf{0} \\
+\quad + fine-tuning on the 640 (lr $3\cdot10^{-4}$) & 0.7519 & 0.456 & 0 \\
+\quad + fine-tuning on the 640 (lr $1\cdot10^{-4}$) & 0.7522 & 0.459 & 0 \\
+\hline
+external at $1.45$\,mm/px, pretrained & 0.6791 & 0.425 & 2 \\
+\quad + fine-tuning & \textbf{0.7584} & 0.445 & 2 \\
+DINOv3 + DPT, external pretrained & 0.7233 & 0.442 & 0 \\
+\quad + fine-tuning & 0.7518 & 0.450 & 0 \\
+\hline
+ensemble, 2 ResNet-34, same scale & 0.7551 & --- & 0 \\
+ensemble, 4 ResNet-34, both scales & 0.7704 & --- & 0 \\
+ensemble, + DINOv3 & 0.7785 & --- & 0 \\
+\textbf{ensemble, 7 members} & \textbf{0.7796} & --- & 0 \\
+\hline
+\end{tabular}
+\end{center}
+
+\noindent Two points deserve emphasis. First, a model pretrained purely on external data,
+\textbf{having never seen a single challenge training image}, reaches $0.6122$
+in three epochs - better than a ResNet-34 trained for 40 epochs on the 640
+annotated slices ($0.3828$, the short-recipe control of \S\ref{sec:failed}).
+Second, fine-tuning is worth $+0.072$ on its own: there remains a genuine domain
+gap that imitating the geometry and the windowing does not close.
+
+\vspace{2.0mm}
+
+\noindent The fine-tuning learning rate, on the other hand, does not matter: $0.7519$
+against $0.7522$, which is noise.
+
+\subsection{On the leaderboard}
+
+\begin{center}
+\begin{tabular}{lccc}
+\hline
+\textbf{submission} & \textbf{validation} & \textbf{leaderboard} & \textbf{gap} \\
+\hline
+before (pseudo-labels + ensemble) & 0.5215 & 0.5226 & $+0.001$ \\
+external pretraining only & 0.6122 & 0.61 & $-0.002$ \\
+pretraining + fine-tuning & 0.7522 & 0.7413 & $-0.011$ \\
+ensemble of 4 ResNet-34 & 0.7704 & 0.7436 & $-0.027$ \\
+ensemble of 4 + DINOv3 & 0.7785 & 0.7594 & $-0.019$ \\
+\textbf{+ 2 more DINOv3 arms} & \textbf{0.7796} & \textbf{0.7612} & $-0.018$ \\
+\hline
+\end{tabular}
+\end{center}
+
+The first row is the 4-model ensemble at $0.5215$, not the single
+\texttt{pseudo\_os\_resnet34} at $0.5235$ listed above - the ensemble is what
+was actually submitted at the time.
+
+\subsection{The gap grows with how much the validation set was used}
+
+The third and fourth rows are the cautionary ones. Early stopping picks the best
+epoch out of 40 on 160 images, which is 40 draws, and costs $-0.011$. Averaging
+four models each selected that way on the \emph{same} 160 images does not cancel
+their bias, it compounds it - they share the ``lucky on those 160'' component,
+and the gap doubles to $-0.027$. That ensemble gained $+0.018$ on validation and
+$+0.002$ on the leaderboard, one eighth of what was advertised.
+
+\vspace{2.0mm}
+
+\noindent \textbf{And then the last row breaks the pattern, which is the useful
+part.} Adding DINOv3 gained $+0.008$ on validation and $+0.016$ on the
+leaderboard, twice what validation predicted, and the gap narrowed rather than
+widened. The distinction is not the size of the change but its nature: a
+threshold, an ensemble weighting, a post-processing sweep are knobs turned
+\emph{against} 160 images and they do not transfer; an architecture, a dataset, a
+training recipe are real changes and they transfer nearly in full. A member that
+was not selected in the same mould also dilutes the shared bias of the others,
+which is why the gap shrank.
+
+\vspace{2.0mm}
+
+\noindent Predicting $+0.001$ to $+0.003$ for that last submission, by
+applying the one-eighth discount to what was plainly a change of model; was
+the clearest analytical mistake of this project. It nearly cost the submission
+that took first place.
+
+\vspace{2.0mm}
+
+\noindent From roughly 21\textsuperscript{st} place to
+\textbf{1\textsuperscript{st}}, $0.0163$ ahead of the previous leader
+($0.7449$).
+
+\newpage
+
+\section{The adrenal gland case}
+\label{sec:adrenal}
+
+One class remains at zero, \texttt{adrenal\_gland\_right}. The diagnosis is
+worth telling because it illustrates the method.
+
+\vspace{2.0mm}
+\noindent Four hypotheses were eliminated one by one. It is not a left/right swap (the
+centroids agree, $0.38/0.60$ against $0.41/0.58$). It is not a neighbouring class
+stealing the pixels (the argmax says background 81\,\%, liver 18\,\%, and the
+correct class ranks 6\textsuperscript{th} out of 55 at $p = 0.00005$). It is not
+annotation noise (the masks are anatomically correct on both sides). It is not a
+shortage of examples (1{,}780 against 18).
+
+\vspace{2.0mm}
+
+\noindent The decisive test: the model fails \textbf{on its own training data too}, Dice
+$0.000$ over 369 external slices it has seen dozens of times. So it is neither
+the domain, nor the scale, nor the quantity.
+
+\vspace{2.0mm}
+
+\noindent The cause is morphological. Measuring thickness (inscribed radius) rather than
+area, the two adrenal glands are the \textbf{only two structures in the dataset
+below 3\,px}: $2.0$ and $2.8$ px against $\geq 3.0$ for the other 52. They are
+ribbons two pixels wide. But thinness alone does not explain it: the ribs are
+also $3.0$\,px thick and score $0.75$ - they are bone against soft tissue. The
+adrenals combine thinness \emph{and} low contrast, soft tissue against fat.
+
+\vspace{2.0mm}
+
+\noindent The left one unlocked by itself ($0.000 \to 0.296$) once the model became good
+everywhere else. The right one, thinner by $0.8$\,px, is the last class at zero
+out of 54.
+
+\newpage
+
+\section*{References}
+\addcontentsline{toc}{section}{References}
+
+\begin{thebibliography}{9}
+\bibitem{totalseg} J. Wasserthal et al., \emph{TotalSegmentator: robust
+    segmentation of 104 anatomical structures in CT images}, Radiology:
+    Artificial Intelligence, 2023. Dataset:
+    \url{https://zenodo.org/records/6802614} --- 1204 CT volumes, released under
+    CC BY 4.0. \textbf{This work is built on that dataset and the licence
+    requires the attribution.}
+\bibitem{nnunet} F. Isensee et al., \emph{nnU-Net: a self-configuring method for
+    deep learning-based biomedical image segmentation}, Nature Methods 18, 2021.
+    The challenge's own baseline.
+\bibitem{marginal} G. Shi et al., \emph{Marginal loss and exclusion loss for
+    partially supervised multi-organ segmentation}, Medical Image Analysis 70,
+    2021, arXiv:2007.03868.
+\bibitem{dpt} R. Ranftl, A. Bochkovskiy, V. Koltun, \emph{Vision transformers
+    for dense prediction}, ICCV 2021. The DPT decoder.
+\bibitem{dinov3} Meta AI Research, \emph{DINOv3}, 2025. The encoder.
+\end{thebibliography}
+
+\end{document}
