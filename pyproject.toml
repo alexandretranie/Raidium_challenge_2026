@@ -6,11 +6,23 @@ dependencies = [
     "ipykernel>=7.3.0",
     "jupyter>=1.1.1",
     "matplotlib>=3.11.1",
+    "nibabel>=5.4.2",
     "numpy>=2.5.1",
     "pandas>=3.0.5",
     "pillow>=12.3.0",
     "scikit-learn>=1.9.0",
+    "segmentation-models-pytorch>=0.5.0",
     "torch>=2.13.0",
     "torchvision>=0.28.0",
     "tqdm>=4.70.0",
 ]
+
+# Installed into the venv (editable) so that `from radium import ...` works from
+# anywhere — which is what lets the entry points live in tools/ instead of
+# cluttering the repository root.
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["radium"]
