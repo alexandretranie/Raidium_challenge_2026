@@ -1,11 +1,9 @@
 # --- Data (not versioned, download from the challenge platform) ---
 # label_Hnl61pT.csv is 255 MB: above GitHub's 100 MB per-file limit.
 # The image folders hold 2500 files for 67 MB.
-label_Hnl61pT.csv
-annotated_labels.json
-train-images/
-test-images/
+data/
 *.csv
+
 
 # --- Virtual environment ---
 .venv/
@@ -28,7 +26,15 @@ dist/
 .ipynb_checkpoints/
 *.ipynb_checkpoints
 
+# --- Generated locally (rebuilt on demand, several hundred MB) ---
+.cache/
+figures/
+out/
+submissions/
+radium-kaggle.zip
+
 # --- Models and training outputs ---
+checkpoints/
 *.pt
 *.pth
 *.ckpt
@@ -48,6 +54,17 @@ outputs/
 !.env.example
 *.key
 
+# --- LaTeX ---
+# out/ holds the latexmk build, but an IDE (LaTeX Workshop) compiles in place.
+*.pdf
+*.synctex.gz
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+
 # --- macOS ---
 .DS_Store
 .AppleDouble
@@ -60,3 +77,11 @@ outputs/
 # .vscode/settings.json is versioned on purpose (interpreter path)
 .vscode/*
 !.vscode/settings.json
+
+# --- Teacher probabilities from make_pseudo_pixels.py (262 MB a run) ---
+pseudo-labels/
+
+# --- External training data (33 GB) ---
+# The Zenodo archive (record 6802614) plus the two translated sets that
+# tools/make_external.py derives from it. Regenerate, never version.
+external-data/
