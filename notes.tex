@@ -128,7 +128,7 @@ openBox/.style={logBox, colback=orange!6, colframe=myorange, colbacktitle=orange
 
 \title{Raidium Data Challenge 2026}
 \author{Alexandre Tranié}
-\date{August 2026}
+\date{August -- October 2026}
 
 \begin{document}
 
@@ -155,9 +155,11 @@ self-training   & pseudo-labels on the 1200 raw slices      & 0.5235 & 6 \\
 external data   & TotalSegmentator v1, resliced to 2D       & 0.6803 & 0 \\
 + fine-tuning   & on the 640 challenge slices               & 0.7522 & 0 \\
 + pixel spacing & measured at $1.45$\,mm/px, not $1.20$     & 0.7584 & 2 \\
-+ ensemble      & 7 models, 2 architectures, 2 scales       & \textbf{0.7796} & 0 \\
++ ensemble      & 7 models, 2 architectures, 2 scales       & 0.7796 & 0 \\
++ mixed fine-tuning & external slices kept in the fine-tuning, weak organs first & 0.7725 & 0 \\
++ adrenal threshold & 8 models, threshold set off the challenge & \textbf{0.7871} & 0 \\
 \hline
-leaderboard     & (validation $\to$ held-out test)          & \textbf{0.7612} & 0 \\
+leaderboard     & (validation $\to$ held-out test)          & \textbf{0.7674} & 0 \\
 \hline
 \end{tabularx}
 \end{center}
@@ -170,8 +172,14 @@ step is worth $+0.076$ in total; that step alone is worth $+0.23$.
 
 \vspace{2.0mm}
 
-\noindent Final standing: \textbf{1\textsuperscript{st}}, $0.0163$ ahead of the
-previous leader ($0.7449$), from roughly 21\textsuperscript{st} at the start.
+\noindent The mixed fine-tuning row is a single model, the best of the project;
+every other row from ``ensemble'' on is an average.
+
+\vspace{2.0mm}
+
+\noindent Final standing: \textbf{1\textsuperscript{st}} at $0.7674$, from roughly
+21\textsuperscript{st} at the start. The first lead, $0.7612$, was overtaken by a
+$0.7626$; the work on the weak classes (\S\ref{sec:weak}) took it back by $0.0048$.
 
 
 \newpage
@@ -282,6 +290,8 @@ Weight the loss by inverse organ area & $0.4248$, i.e.\ \emph{below} the baselin
 Oversample slices carrying a rare organ & small but real; kept in the final recipe & \adopted \\
 Per-class decision thresholds & 54 parameters fitted on 160 images; only a single global threshold at $0.25$ survives cross-validation & \rejected \\
 Focal loss, Tversky with $\beta > \alpha$ & only ever run inside the area-weighting arm, never isolated & \untested \\
+Up-weight the adrenals & not run: it would reinforce the memorisation of 15 examples & \rejected \\
+\textbf{Adrenal threshold set off the challenge} & \textbf{$0.26 \to 0.40$ on external volumes, and it transferred} (\S\ref{sec:weak}) & \adopted \\
 \hline
 \multicolumn{3}{@{}l@{}}{\textit{Architecture}}\\
 DINOv3 + DPT instead of ResNet-34 & $+0.038$, the largest architectural gain measured here & \adopted \\
@@ -301,15 +311,18 @@ Per-slice contrast handling & useless on the challenge data, then essential when
 \hline
 \multicolumn{3}{@{}l@{}}{\textit{Data}}\\
 Presence classifier: which organs does this slice contain? & oracle ceiling $+0.007$ --- the model almost never invents an absent organ, so there is nothing to win & \rejected \\
+Infer the adrenals from their neighbours & weak prior ($P \leq 0.58$); the model's own peak already reaches AUC $0.94$ & \rejected \\
 Left--right flip augmentation & $0.4124$ against $0.4474$: it halves the supervision of the classes that have no mirror twin & \rejected \\
 Pseudo-label the 1200 unannotated slices & $+0.038$ & \adopted \\
 Run TotalSegmentator directly as a labeller & it is a 3D model; on 2D slices stacked into fake volumes its recall falls to 5--30\,\% & \rejected \\
 \textbf{Slice annotated 3D volumes into 2D and remap the labels} & \textbf{$+0.23$, and every silent class disappears} (\S\ref{sec:external}) & \adopted \\
+\textbf{External slices kept in the fine-tuning} & \textbf{$0.7584 \to 0.7725$} on one ResNet-34 (\S\ref{sec:weak}) & \adopted \\
 \hline
 \multicolumn{3}{@{}l@{}}{\textit{Ensembling}}\\
 Search the ensemble weights on validation & the winning weighting beats the uniform one by $+0.02$ on those 160 images and by nothing anywhere else & \rejected \\
 Average models that differ only in a hyper-parameter & two ResNet-34 fine-tuned at different learning rates: $+0.003$ & \rejected \\
 \textbf{Average models that differ in architecture or in pixel scale} & \textbf{$+0.012$ on validation and $+0.016$ on the leaderboard} - the one case where the leaderboard gained \emph{more} than validation predicted & \adopted \\
+Mixed DINOv3 as a ninth member & $+0.010$ alone, $-0.001$ in the ensemble & \rejected \\
 \hline
 \end{tabularx}
 \end{center}
@@ -650,7 +663,11 @@ DINOv3 + DPT, external pretrained & 0.7233 & 0.442 & 0 \\
 ensemble, 2 ResNet-34, same scale & 0.7551 & --- & 0 \\
 ensemble, 4 ResNet-34, both scales & 0.7704 & --- & 0 \\
 ensemble, + DINOv3 & 0.7785 & --- & 0 \\
-\textbf{ensemble, 7 members} & \textbf{0.7796} & --- & 0 \\
+ensemble, 7 members & 0.7796 & --- & 0 \\
+\hline
+mixed fine-tuning, ResNet-34 (last epoch) & \textbf{0.7725} & --- & 0 \\
+mixed fine-tuning, DINOv3 (last epoch) & 0.7620 & --- & 0 \\
+\textbf{ensemble, 8 members + adrenal threshold} & \textbf{0.7871} & --- & 0 \\
 \hline
 \end{tabular}
 \end{center}
@@ -679,7 +696,8 @@ external pretraining only & 0.6122 & 0.61 & $-0.002$ \\
 pretraining + fine-tuning & 0.7522 & 0.7413 & $-0.011$ \\
 ensemble of 4 ResNet-34 & 0.7704 & 0.7436 & $-0.027$ \\
 ensemble of 4 + DINOv3 & 0.7785 & 0.7594 & $-0.019$ \\
-\textbf{+ 2 more DINOv3 arms} & \textbf{0.7796} & \textbf{0.7612} & $-0.018$ \\
++ 2 more DINOv3 arms & 0.7796 & 0.7612 & $-0.018$ \\
+\textbf{+ mixed member, adrenal threshold} & \textbf{0.7871} & \textbf{0.7674} & $-0.020$ \\
 \hline
 \end{tabular}
 \end{center}
@@ -718,17 +736,190 @@ that took first place.
 
 \vspace{2.0mm}
 
+\noindent The last row confirms the rule from the other side. Both of its changes
+are of the kind that transfers --- a member trained with a different recipe, and
+a threshold set on external volumes rather than on the 160 images --- and three
+quarters of the validation gain reached the leaderboard ($+0.0084 \to +0.0062$),
+with the gap steady at $-0.020$.
+
+\vspace{2.0mm}
+
 \noindent From roughly 21\textsuperscript{st} place to
-\textbf{1\textsuperscript{st}}, $0.0163$ ahead of the previous leader
-($0.7449$).
+\textbf{1\textsuperscript{st}} at $0.7674$.
+
+\newpage
+
+\section{Closing in on the weak classes}
+\label{sec:weak}
+
+The $0.7612$ lead was overtaken by a $0.7626$. Taking it back needed $+0.0015$ on
+the leaderboard, and the per-class audit of the 7-model ensemble says where to
+look: ten classes lose about $0.10$ of score between them, a hundred times the
+margin.
+
+\begin{center}
+\small
+\begin{tabular}{rlcccl}
+\hline
+\textbf{id} & \textbf{organ} & \textbf{Dice} & \textbf{val.\ slices} & \textbf{prob.\ on truth} & \textbf{missed pixels go to} \\
+\hline
+2 & adrenal, right & 0.000 & 3 & 0.00 & background 58\,\%, liver 33\,\% \\
+1 & adrenal, left & 0.093 & 4 & 0.15 & background 87\,\% \\
+40 & portal and splenic vein & 0.271 & 11 & 0.44 & background, liver \\
+10 & duodenum & 0.466 & 7 & 0.58 & background \\
+27, 28 & iliac arteries & 0.57 & 14--18 & 0.52--0.59 & background \\
+15 & gallbladder & 0.630 & 5 & 0.56 & background \\
+29, 30 & iliac veins & 0.63--0.68 & 16--19 & 0.69--0.75 & background \\
+39 & pancreas & 0.641 & 9 & 0.60 & background, stomach \\
+\hline
+\end{tabular}
+\end{center}
+
+\noindent Two failures again, and they are distinct. The adrenals are a
+\emph{detection} failure: the correct class gets almost no probability. The
+others are a \emph{contour} failure: the organ is found, at a probability around
+$0.5$ on its pixels, and under-segmented --- what is missed is lost to
+background, on structures of 55 to 230\,px.
+
+\subsection{A larger instrument}
+
+Validation cannot arbitrate here: it holds 3 to 7 slices for most of these
+organs. The measuring instrument becomes the last tenth of the external set
+--- whole volumes, since the generator writes them in order, held out of every
+fine-tuning below --- scored like the test: all 54 organs on every slice, a stray
+blob on an organ-free slice counting as 0. Two caveats, both stated once: the
+pretraining saw those volumes, which flatters every model alike; and a model
+fine-tuned on external slices is closer to that domain than one that is not, so
+validation stays the arbiter of the final number.
+
+\subsection{The adrenals fail by memorisation}
+
+Read on that instrument, the ensemble \emph{does} see the adrenals: their
+presence is separated at an AUC of $0.94$ by the peak probability, and the
+probability on their true pixels is $0.26$--$0.28$. On the challenge slices it
+was fine-tuned on, it gives them $0.4$--$0.6$; on the validation slices,
+$\approx 0$. The fine-tuning shows the right adrenal 15 times and the left one
+17 times, and the model learns those slices rather than the organ. This revises
+\S\ref{sec:adrenal}: the cause is not capacity.
+
+\addcontentsline{toc}{subsection}{Keeping external slices in the fine-tuning}
+\begin{expwin}{Keeping external slices in the fine-tuning}{mixed}
+\hyp If the fine-tuning erases what the pretraining taught about the weak organs
+because it no longer shows them, keeping external slices in it should preserve
+them while the network still adapts to the challenge domain.
+
+\proto From \texttt{pre145\_256}, the parent of the best single model. Each
+epoch draws the 640 challenge slices plus 640 external ones. The external draw is
+class-balanced over the twelve organs scoring under $0.73$: a slice weighs the
+inverse frequency of the rarest weak organ it carries, and slices with none share
+20\,\% of the draws, so each adrenal is in 17\,\% of them --- about 110 slices an
+epoch, against 15 in the whole challenge set. A flat $\times4$ boost was tried
+first and dropped before any result: 71\,\% of the external slices carry
+\emph{some} weak organ, so it barely moves the mix. 40 epochs, the recipe of
+\texttt{ft145\_256} otherwise; the \textbf{last} epoch is kept, so no selection
+on validation.
+
+\meas
+\begin{center}
+\begin{tabular}{lcccc}
+\hline
+ & \textbf{val.} & \textbf{val.\ weak} & \textbf{external} & \textbf{external weak} \\
+\hline
+\texttt{ft145\_256} & 0.7584 & 0.478 & 0.7297 & 0.473 \\
+\textbf{mixed, ResNet-34} & \textbf{0.7725} & \textbf{0.528} & \textbf{0.7640} & \textbf{0.554} \\
+\hline
+\texttt{ft145\_dinov3} & 0.7518 & 0.474 & 0.7205 & 0.492 \\
+mixed, DINOv3 & 0.7620 & 0.497 & 0.7489 & 0.540 \\
+\hline
+\end{tabular}
+\end{center}
+On the external holdout the two adrenals go from $0.000/0.000$ to $0.26/0.37$
+for the ResNet-34, at the plain argmax, and all twelve weak classes rise for both
+architectures but one, unchanged.
+
+\verd \adopted. $+0.014$ on validation, and that without the early-stopping
+optimism the baseline carries --- the real gap is if anything larger. The best
+single model of the project, and the recipe holds on DINOv3 ($+0.010$).
+\end{expwin}
+
+\addcontentsline{toc}{subsection}{An adrenal threshold set off the challenge}
+\begin{expwin}{An adrenal threshold set off the challenge}{adrthr}
+\hyp The ensemble gives the adrenals a quarter of the probability on their
+pixels, and background wins the argmax. Letting an adrenal take a background
+pixel above a lower threshold should recover them --- provided the threshold is
+not fitted on the 160 images that four earlier tunings overfitted.
+
+\proto A first reading lowered the background everywhere (probability
+$\times 0.7$): $+0.006$ on validation, all of it from the left adrenal on four
+slices, nothing on the vessels. Hence a rule restricted to the two adrenals: a
+background pixel becomes an adrenal when that adrenal exceeds $t$. $t$ is chosen
+on 2{,}000 held-out external slices at their natural adrenal prevalence (7\,\%,
+against 5.5\,\% in the challenge), validation is read afterwards as a check.
+
+\meas
+\begin{center}
+\begin{tabular}{lccc}
+\hline
+$t$ & \textbf{adrenal L} & \textbf{adrenal R} & \textbf{stray blobs} \\
+\hline
+argmax & 0.257 & 0.266 & 0.1\,\% \\
+0.3 & 0.368 & 0.323 & 0.2\,\% \\
+\textbf{0.15} & \textbf{0.422} & \textbf{0.355} & 0.4\,\% \\
+0.1 & 0.420 & 0.354 & 0.5\,\% \\
+0.05 & 0.406 & 0.353 & 0.7\,\% \\
+\hline
+\end{tabular}
+\end{center}
+A plateau from $0.1$ to $0.2$. On validation, $0.7787 \to 0.7832$. On the test,
+the slices carrying a predicted adrenal go from 11 to 18 and from 9 to 13, still
+short of the 28 to 35 the prevalence implies --- so the rule adds few stray
+blobs.
+
+\verd \adopted. Set against the per-class thresholds of \S\ref{sec:failed},
+the rule is no smarter; what changed is \emph{where} it is fitted.
+\end{expwin}
+
+\subsection{The submission, and how it was decided}
+
+The two combine: the seven models of the previous record plus the mixed
+ResNet-34, averaged uniformly, then the adrenal rule at $t = 0.1$, recalibrated
+on the external holdout for the eight-member average. Validation $0.7871$.
+
+\vspace{2.0mm}
+
+\noindent Before sending it, a paired bootstrap over the 160 validation images
+against the 7-model ensemble: $+0.0084$, 90\,\% interval $[+0.0016, +0.0143]$,
+$P(\text{gain} > 0.0015) = 0.95$. Removing the left adrenal from the score still
+leaves $+0.0023$, which is the new member alone; the threshold carries the rest.
+The bootstrap only measures the sampling noise of validation, not its bias, so
+the honest expectation was nearer 80--90\,\% --- the leaderboard gave
+$\mathbf{0.7674}$.
+
+\addcontentsline{toc}{subsection}{A ninth member: the mixed DINOv3}
+\begin{expfail}{A ninth member: the mixed DINOv3}{ninth}
+\hyp The mixed DINOv3 beats every DINOv3 already in the average by $0.008$ or
+more; adding it should help as the first DINOv3 did ($+0.016$ on the
+leaderboard).
+
+\meas Without the rule $0.7812$ against $0.7811$ for eight members; with it,
+$0.7861$ against $0.7871$. Bootstrap against the record: $-0.0010$,
+$P(\text{gain} > 0) = 0.12$.
+
+\verd \rejected, not submitted. The first DINOv3 brought a new architecture into
+an all-ResNet average; this one is the fourth DINOv3 of nine and brings no new
+diversity. The open question is the converse: an ensemble in which \emph{every}
+member follows the mixed recipe --- a change of recipe, not a composition picked
+on validation. \untested.
+\end{expfail}
 
 \newpage
 
 \section{The adrenal gland case}
 \label{sec:adrenal}
 
-One class remains at zero, \texttt{adrenal\_gland\_right}. The diagnosis is
-worth telling because it illustrates the method.
+For most of the project one class stayed at zero, \texttt{adrenal\_gland\_right}.
+The diagnosis is worth telling because it illustrates the method --- and because
+its conclusion turned out to be half wrong.
 
 \vspace{2.0mm}
 \noindent Four hypotheses were eliminated one by one. It is not a left/right swap (the
@@ -740,24 +931,42 @@ shortage of examples (1{,}780 against 18).
 
 \vspace{2.0mm}
 
-\noindent The decisive test: the model fails \textbf{on its own training data too}, Dice
-$0.000$ over 369 external slices it has seen dozens of times. So it is neither
-the domain, nor the scale, nor the quantity.
+\noindent The test that looked decisive: the pretrained ResNet-34 failed \textbf{on its
+own training data too}, Dice $0.000$ over 369 external slices it had seen dozens
+of times.
 
 \vspace{2.0mm}
 
-\noindent The cause is morphological. Measuring thickness (inscribed radius) rather than
+\noindent Hence a morphological explanation. Measuring thickness (inscribed radius) rather than
 area, the two adrenal glands are the \textbf{only two structures in the dataset
 below 3\,px}: $2.0$ and $2.8$ px against $\geq 3.0$ for the other 52. They are
 ribbons two pixels wide. But thinness alone does not explain it: the ribs are
 also $3.0$\,px thick and score $0.75$ - they are bone against soft tissue. The
 adrenals combine thinness \emph{and} low contrast, soft tissue against fat.
 
-\vspace{2.0mm}
+\subsection{What the morphology did not explain}
 
-\noindent The left one unlocked by itself ($0.000 \to 0.296$) once the model became good
-everywhere else. The right one, thinner by $0.8$\,px, is the last class at zero
-out of 54.
+Thin and low-contrast makes them \emph{hard}; it does not make them unlearnable.
+On the held-out external volumes of \S\ref{sec:weak}, at the plain argmax:
+
+\begin{center}
+\begin{tabular}{lcc}
+\hline
+\textbf{model} & \textbf{adrenal L} & \textbf{adrenal R} \\
+\hline
+\texttt{ft145\_256}, fine-tuned on the 640 & 0.000 & 0.000 \\
+\texttt{ft145\_dinov3}, fine-tuned on the 640 & 0.347 & 0.299 \\
+mixed ResNet-34 & 0.258 & 0.369 \\
+\hline
+\end{tabular}
+\end{center}
+
+\noindent The same ResNet-34, at the same resolution, finds both adrenals once its
+fine-tuning keeps showing them. What the earlier diagnosis missed is that the
+fine-tuning on 640 slices --- 15 right adrenals --- was where they were lost. On
+validation the right adrenal still reads 0, but on three slices that is no longer
+a measurement.
+
 
 \newpage
 
