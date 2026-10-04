@@ -10,7 +10,50 @@ Read them with the discount measured across five submissions: a validation
 number obtained by early stopping is optimistic by about **0.011**, and by
 **0.027** once several such models are averaged. See `notes.tex` §Results.
 
-## The submission of record — 0.7612 on the leaderboard
+## The submission of record — 0.7674 on the leaderboard
+
+The seven models of the previous record (next section), plus `exp_mixed.pt`, a
+uniform average of eight, then one decision rule on top: a background pixel
+becomes an adrenal when that adrenal's probability exceeds **t = 0.1**.
+Validation **0.7871**, against 0.7787 for the seven alone; leaderboard **0.7674**
+against 0.7612, so about three quarters of the validation gain transferred. The
+CSV is `submissions/submission_1st_0.7674.csv`.
+
+```bash
+uv run python tools/exp_adrenal_threshold.py \
+    --members "ft145_256 ft_lr1e4 ft_lr3e4 ft145_512 ft145_dinov3 \
+ft145_dinov3_e03 ft145_dinov3_e10 exp_mixed" \
+    --submit submissions/submission.csv
+```
+
+| file | val | what it is |
+|---|---|---|
+| `exp_mixed.pt` | 0.7725 | ResNet-34 from `pre145_256.pt`, fine-tuned on the 640 challenge slices **mixed with 640 external slices per epoch**, drawn class-balanced over 12 weak organs. Last epoch, no selection on validation. Best single model, +0.014 over `ft145_256` |
+| `exp_mixed_dinov3.pt` | 0.7620 | the same recipe from `pre145_dinov3.pt`, last epoch. +0.010 over `ft145_dinov3`, but **worth nothing as a ninth member** (0.7861 against 0.7871 with the threshold): not in the submission |
+
+Why the two changes, and why they transferred:
+
+- **The adrenals failed by memorisation, not capacity.** The fine-tuning of the
+  previous record sees the right adrenal 15 times; the ensemble gave it 0.4-0.6
+  on those slices and ~0 on validation, yet found it on TotalSegmentator with a
+  presence AUC of 0.94. Mixing external slices into the fine-tuning keeps
+  hundreds of adrenals per epoch in view: 0 → 0.26 / 0.37 on held-out external
+  volumes, at the argmax. All 12 weak classes rose.
+- **The threshold is calibrated off the challenge**, on 2000 held-out external
+  slices (the last tenth of `external145`, whole volumes, never trained on in the
+  mixed runs), scored like the test: every slice counts, a stray blob is a 0.
+  Adrenals 0.26 → 0.40 there, for 0.5 % stray blobs, on a plateau from 0.1 to
+  0.2. The four thresholds tuned on the 160 validation slices never transferred;
+  this one did.
+- `tools/exp_bootstrap.py` compares a candidate ensemble with this record on
+  validation; this submission had P(gain > +0.0015) = 0.95 before it was sent.
+
+The scripts: `exp_train_mixed.py` (the recipe), `exp_adrenal_threshold.py`
+(calibrate, check, submit), `exp_compare_weak.py` (weak classes on validation
+and on the external holdout), `exp_bootstrap.py`. `out/exp/` caches the organ
+presence of `external145`, which the mixed sampler reads.
+
+## The previous record — 0.7612 on the leaderboard
 
 A uniform average of the seven models below, `min_size = 0`. Two architectures, two
 pixel scales; that diversity is what the leaderboard rewarded, not the individual
@@ -73,6 +116,11 @@ The `small_*` resolution arms, `best_hu`, `best_smallorgans`,
 0.5226 ensemble. All are measured, written up in `notes.tex`, and superseded.
 Deleting a checkpoint whose number is recorded costs nothing; deleting the number
 would — which is why `ft145_dinov3_e03/e10` were retrained after being dropped.
+
+From the mixed-fine-tuning experiment: the best-epoch copy of the DINOv3 run
+(0.7639, selected on validation, so optimistic), a byte-identical duplicate of
+`exp_mixed.pt`, and the candidate CSVs that were not sent (the 9-member
+ensemble, the argmax variants, the threshold patched onto the 0.7612 CSV).
 
 `tools/submit.py` also writes `bias_ensemble.npy` here; it is a bias vector, not a
 model.
